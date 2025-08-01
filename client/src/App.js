@@ -57,7 +57,7 @@ function App() {
     return (
         <div className="App">
             <header>
-                <h1>Expense Tracker</h1>
+                <h1>Expenses Tracker</h1>
             </header>
             <main>
               
