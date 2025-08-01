@@ -1,38 +1,23 @@
-.App {
-  text-align: center;
-}
+/* client/src/App.css */
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; }
+.App { max-width: 800px; margin: 0 auto; padding: 20px; }
+header h1 { text-align: center; color: #333; }
+main { display: grid; grid-template-columns: 1fr; gap: 40px; }
+@media (min-width: 768px) { main { grid-template-columns: 300px 1fr; } }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
+.form-container, .expenses-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+h2 { margin-top: 0; color: #555; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+form { display: flex; flex-direction: column; gap: 15px; }
+input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: background-color 0.2s; }
+button:hover { background-color: #0056b3; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+.expense-list { list-style: none; padding: 0; margin: 0; }
+.expense-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+.expense-item:last-child { border-bottom: none; }
+.expense-details { display: flex; flex-direction: column; }
+.expense-desc { font-weight: bold; color: #333; }
+.expense-cat { font-size: 0.9em; color: #777; background-color: #f0f0f0; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 5px; }
+.expense-actions { display: flex; align-items: center; gap: 15px; }
+.expense-amount { font-weight: bold; color: #28a745; }
+.delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 18px; padding: 5px; }
