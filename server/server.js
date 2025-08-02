@@ -12,6 +12,12 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json()); // Allows us to parse JSON
 
+// Content Security Policy Middleware
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:;");
+  next();
+});
+
 // MongoDB Connection
 const uri = process.env.MONGO_URI;
 
