@@ -23,8 +23,6 @@ if (!uri) {
 // Add SSL options to handle connection issues
 const options = {
   tls: true,
-  tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true,
   tlsInsecure: true, // This bypasses SSL validation completely
   useUnifiedTopology: true,
   useNewUrlParser: true,
