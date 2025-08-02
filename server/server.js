@@ -51,6 +51,15 @@ const options = {
   // SSL options to handle connection issues
   tls: true,
   tlsInsecure: false,
+  // Additional options to handle SSL/TLS errors
+  sslValidate: false,
+  // Retry options
+  retryWrites: true,
+  // For Render deployment issues
+  directConnection: false,
+  connectTimeoutMS: 10000,
+  // Handle potential IP whitelisting issues
+  useUnifiedTopology: true,
 };
 
 // Function to connect to MongoDB with retry mechanism

@@ -84,10 +84,14 @@ If you're getting connection errors:
 - "Could not connect to any servers in your MongoDB Atlas cluster":
   - Check your IP whitelist in MongoDB Atlas
   - Verify your connection string credentials
+  - Try adding your current IP to the whitelist or use 0.0.0.0/0 for testing (not recommended for production)
+  - For Render deployment, you may need to add Render's IP addresses to your whitelist
 
 - SSL/TLS errors:
   - Try adding `tlsInsecure: true` to the connection options (not recommended for production)
   - Check if you're behind a corporate firewall that might be interfering with SSL connections
+  - Add `?ssl=true&tlsAllowInvalidCertificates=true` to your connection string for testing
+  - For Render deployment, ensure SSL settings are compatible with Render's infrastructure
 
 ### Deployment
 
