@@ -20,22 +20,40 @@ if (!uri) {
   process.exit(1);
 }
 
-// Add SSL options to handle connection issues
+// Connection options for newer versions of Mongoose (deprecated options removed)
 const options = {
-  tls: true,
-  tlsInsecure: true, // This bypasses SSL validation completely
-  useUnifiedTopology: true,
-  useNewUrlParser: true,
+  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of default 30s
+  socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
 };
 
-mongoose.connect(uri, options)
-  .then(() => {
+// Function to connect to MongoDB with retry mechanism
+const connectWithRetry = async () => {
+  try {
+    console.log('Attempting to connect to MongoDB...');
+    await mongoose.connect(uri, options);
     console.log("MongoDB database connection established successfully");
-  })
-  .catch(err => {
+  } catch (err) {
     console.error("MongoDB connection error:", err);
-    process.exit(1);
-  });
+    console.log("Retrying connection in 5 seconds...");
+    setTimeout(connectWithRetry, 5000); // Retry after 5 seconds
+  }
+};
+
+// Initial connection attempt
+connectWithRetry();
+
+// Connection event handlers for better monitoring
+mongoose.connection.on('connected', () => {
+  console.log('Mongoose connected to DB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('Mongoose connection disconnected');
+});
 
 // Routes
 const expensesRouter = require('./routes/expenses');
