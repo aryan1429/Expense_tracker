@@ -50,7 +50,7 @@ const options = {
   socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
   // SSL options to handle connection issues
   tls: true,
-  tlsInsecure: false,
+  tlsInsecure: true, // Allow insecure TLS connections for compatibility
   // Retry options
   retryWrites: true,
   // For Render deployment issues
