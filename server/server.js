@@ -12,7 +12,11 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json()); // Allows us to parse JSON
 
-// Content Security Policy Middleware
+// Routes
+const expensesRouter = require('./routes/expenses');
+app.use('/api/expenses', expensesRouter); // All expense routes will be prefixed with /api/expenses
+
+// Content Security Policy Middleware (placed after routes to override any default CSP headers)
 app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:;");
   next();
@@ -60,10 +64,6 @@ mongoose.connection.on('error', (err) => {
 mongoose.connection.on('disconnected', () => {
   console.log('Mongoose connection disconnected');
 });
-
-// Routes
-const expensesRouter = require('./routes/expenses');
-app.use('/api/expenses', expensesRouter); // All expense routes will be prefixed with /api/expenses
 
 // Start Server
 app.listen(port, () => {
