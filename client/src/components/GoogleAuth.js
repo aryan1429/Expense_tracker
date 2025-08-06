@@ -60,11 +60,16 @@ const GoogleAuth = ({ type }) => {
       const endpoint = testEndpoints[index];
       console.log(`Trying endpoint: ${apiUrl}${endpoint}`);
       
+      // Add a timeout to prevent hanging connections
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
       fetch(`${apiUrl}${endpoint}`, { 
         mode: 'cors',
         headers: {
           'Accept': 'application/json'
-        }
+        },
+        signal: controller.signal
       })
         .then(response => {
           if (response.ok) {
@@ -80,7 +85,11 @@ const GoogleAuth = ({ type }) => {
           }
         })
         .catch(error => {
-          console.log(`Error accessing ${endpoint}:`, error);
+          if (error.name === 'AbortError') {
+            console.log(`Request to ${endpoint} timed out. Server might be slow to respond.`);
+          } else {
+            console.log(`Error accessing ${endpoint}:`, error);
+          }
           // Try the next endpoint
           checkEndpoint(index + 1);
         });
@@ -250,9 +259,24 @@ const GoogleAuth = ({ type }) => {
   // Helper function to open the auth popup
   const openAuthPopup = (apiUrl, width, height, left, top, forceSelection = false) => {
     try {
+      // Generate a unique identifier for this auth attempt
+      const uniqueId = Math.random().toString(36).substring(2, 15);
+      
+      // Generate a unique window name to prevent reuse of existing windows
+      const popupName = `GoogleAuth_${uniqueId}`;
+      
+      // Add a timeout to prevent hanging connections
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
       // First check if Google Auth is configured on the server
-      fetch(`${apiUrl}/api/google-auth-check`)
-        .then(response => response.json())
+      fetch(`${apiUrl}/api/google-auth-check`, { signal: controller.signal })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Server returned status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
           if (!data.configured) {
             console.log('Google Auth check indicates auth is not configured on server');
@@ -263,12 +287,6 @@ const GoogleAuth = ({ type }) => {
               console.log('Callback URL configured as:', data.callbackUrl);
             }
           }
-          
-          // Generate a unique identifier for this auth attempt
-          const uniqueId = Math.random().toString(36).substring(2, 15);
-          
-          // Generate a unique window name to prevent reuse of existing windows
-          const popupName = `GoogleAuth_${uniqueId}`;
           
           // Create URL with parameters - ALWAYS force account selection
           let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&unique=${uniqueId}`;
@@ -291,9 +309,6 @@ const GoogleAuth = ({ type }) => {
           // Continue with auth attempt even if the check fails
           
           // Create URL with parameters - ALWAYS force account selection
-          const uniqueId = Math.random().toString(36).substring(2, 15);
-          const popupName = `GoogleAuth_${uniqueId}`;
-          
           let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&unique=${uniqueId}`;
           
           if (forceSelection) {
