@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: expense-tracker-api
+    env: node
+    buildCommand: npm install
+    startCommand: node server/server.js
+    nodeVersion: 18.18.0
+    envVars:
+      - key: NODE_VERSION
+        value: 18.18.0

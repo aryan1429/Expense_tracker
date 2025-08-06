@@ -1,0 +1,20 @@
+# Production Environment Variables for Render Deployment
+# Copy these variables to your Render dashboard environment settings
+# IMPORTANT: Replace all placeholder values with your actual credentials
+
+# MongoDB connection string
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/<database>?retryWrites=true&w=majority
+
+# JWT Secret - generate a secure random string
+JWT_SECRET=<your-secure-jwt-secret>
+
+# Google OAuth
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
+CALLBACK_URL=<your-app-url>/api/auth/google/callback
+
+# CORS origin for frontend
+CLIENT_URL=https://expense-tracker-sigma-green.vercel.app
+
+# Node environment
+NODE_ENV=production

@@ -1,0 +1,20 @@
+{
+  "name": "expense-tracker",
+  "version": "1.0.0",
+  "description": "Full-stack expense tracker application with Google OAuth support",
+  "main": "index.js",
+  "scripts": {
+    "client": "cd client && npm start",
+    "server": "cd server && node simplified-oauth-server.js",
+    "dev": "node dev.js",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "dotenv": "^17.2.1",
+    "mongodb": "^6.18.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
