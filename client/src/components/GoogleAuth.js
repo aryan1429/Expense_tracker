@@ -43,16 +43,17 @@ const GoogleAuth = ({ type }) => {
     
     // Try multiple endpoints to see if any respond
     const testEndpoints = [
-      '/api/test', 
-      '/api/test/', 
-      '/api/test-direct',
-      '/server-test'  // Direct test endpoint in server.js
+      '/api/auth/google-test', 
+      '/api/auth/simple-test', 
+      '/api/google-auth-check',
+      '/api/test-direct'  // Direct test endpoint in server.js
     ];
     
     // Try each endpoint
     const checkEndpoint = (index) => {
       if (index >= testEndpoints.length) {
-        console.error('All server test endpoints failed');
+        console.log('Server check complete - unable to connect to test endpoints, will try direct connection');
+        // Even if test endpoints fail, we'll still try the actual Google auth when the button is clicked
         return;
       }
       
@@ -68,23 +69,18 @@ const GoogleAuth = ({ type }) => {
         .then(response => {
           if (response.ok) {
             console.log(`Server endpoint ${endpoint} is available`);
-            // Once we find a working endpoint, check Google auth
-            return fetch(`${apiUrl}/api/auth/google-test`, { mode: 'cors' })
-              .then(authResponse => {
-                if (authResponse.ok) {
-                  console.log('Google Auth endpoint is available');
-                } else {
-                  console.warn('Google Auth endpoint responded with status:', authResponse.status);
-                }
-              });
+            if (endpoint === '/api/auth/google-test') {
+              console.log('Google Auth endpoint is available');
+            }
+            return;
           } else {
-            console.warn(`Server endpoint ${endpoint} responded with status:`, response.status);
+            console.log(`Server endpoint ${endpoint} responded with status:`, response.status);
             // Try the next endpoint
             checkEndpoint(index + 1);
           }
         })
         .catch(error => {
-          console.error(`Error accessing ${endpoint}:`, error);
+          console.log(`Error accessing ${endpoint}:`, error);
           // Try the next endpoint
           checkEndpoint(index + 1);
         });
@@ -129,6 +125,127 @@ const GoogleAuth = ({ type }) => {
     // Use the helper function to open the popup
     openAuthPopup(apiUrl, width, height, left, top, forceSelection || true); // Always force selection for better UX
   };
+
+  // Helper function to handle popup window interaction and message events
+  const handlePopupInteraction = (popup, uniqueId, width, height, left, top) => {
+    // Check if popup was blocked
+    if (!popup) {
+      console.error('Popup blocked or could not be opened');
+      alert('Please enable popups for this website to use Google Sign In');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Listen for messages from the popup
+    window.addEventListener('message', function authListener(event) {
+      // Verify origin to prevent XSS
+      const clientURL = process.env.REACT_APP_CLIENT_URL || 'http://localhost:3000';
+      const serverURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      
+      // Accept messages from either our client or server URL
+      if (event.origin !== clientURL && event.origin !== serverURL) {
+        return;
+      }
+      
+      // Check if the message contains authentication data
+      if (event.data && event.data.token) {
+        console.log('Received auth data from popup');
+        
+        if (!authCompleted.current) {
+          // Store the token and user data to match AuthContext
+          localStorage.setItem('token', event.data.token);
+          if (event.data.user) {
+            localStorage.setItem('user', JSON.stringify(event.data.user));
+          }
+          
+          // Mark auth as completed
+          authCompleted.current = true;
+          
+          // Clean up
+          window.removeEventListener('message', authListener);
+          clearInterval(popupCheckInterval);
+          setIsLoading(false);
+          
+          // Redirect or update UI as needed
+          window.location.reload();
+        }
+      } else if (event.data && event.data.canceled) {
+        console.log('Authentication was canceled');
+        
+        if (!authCompleted.current) {
+          // Mark auth as completed
+          authCompleted.current = true;
+          
+          // Clean up
+          window.removeEventListener('message', authListener);
+          clearInterval(popupCheckInterval);
+          setIsLoading(false);
+        }
+      }
+    });
+    
+    // Check if popup closes without sending a message (e.g., user closes the popup)
+    // We use a reference to track if auth is completed to avoid duplicate state updates
+    const authCompleted = { current: false };
+    
+    const popupCheckInterval = setInterval(() => {
+      try {
+        // We'll try to access popup properties, but this might fail due to COOP
+        // Instead of checking popup.closed directly, we'll use a more robust approach
+        if (!popup) {
+          // Popup reference is lost
+          if (!authCompleted.current) {
+            console.log('Auth popup reference lost');
+            clearInterval(popupCheckInterval);
+            setIsLoading(false);
+            authCompleted.current = true;
+          }
+        } else {
+          // Try to detect if the popup is closed without directly accessing .closed
+          try {
+            // Try to access popup location - this will throw if popup is closed
+            // We don't actually need to use the result, just see if it throws
+            popup.location.href; // eslint-disable-line no-unused-expressions
+          } catch (e) {
+            // Error when trying to access popup - likely closed
+            if (!authCompleted.current) {
+              console.log('Auth popup was closed without completing authentication');
+              clearInterval(popupCheckInterval);
+              setIsLoading(false);
+              authCompleted.current = true;
+            }
+          }
+        }
+      } catch (e) {
+        // Any other error, clear the interval and reset loading state
+        console.log('Error checking popup state:', e.message);
+        if (!authCompleted.current) {
+          clearInterval(popupCheckInterval);
+          setIsLoading(false);
+          authCompleted.current = true;
+        }
+      }
+    }, 1000);
+    
+    // Set a timeout to handle cases where the popup may be closed without sending a message
+    setTimeout(() => {
+      if (!authCompleted.current) {
+        console.log('Auth flow timed out after 60 seconds');
+        clearInterval(popupCheckInterval);
+        setIsLoading(false);
+        authCompleted.current = true;
+        
+        // Try to close the popup if it's still open
+        try {
+          if (popup) {
+            popup.close();
+          }
+        } catch (e) {
+          console.error('Error closing popup after timeout:', e.message);
+        }
+      }
+    }, 60000);
+  };
   
   // Helper function to open the auth popup
   const openAuthPopup = (apiUrl, width, height, left, top, forceSelection = false) => {
@@ -138,17 +255,16 @@ const GoogleAuth = ({ type }) => {
         .then(response => response.json())
         .then(data => {
           if (!data.configured) {
-            console.error('Google Auth is not configured on the server');
-            alert('Google Authentication is not properly configured on the server. Please contact the administrator.');
-            setIsLoading(false);
-            return;
+            console.log('Google Auth check indicates auth is not configured on server');
+            // Continue anyway - the server might still work
+          } else {
+            console.log('Google Auth is configured, opening popup...');
+            if (data.callbackUrl) {
+              console.log('Callback URL configured as:', data.callbackUrl);
+            }
           }
           
-          console.log('Google Auth is configured, opening popup...');
-          console.log('Callback URL configured as:', data.callbackUrl);
-          
           // Generate a unique identifier for this auth attempt
-          // This ensures Google treats each attempt as unique
           const uniqueId = Math.random().toString(36).substring(2, 15);
           
           // Generate a unique window name to prevent reuse of existing windows
@@ -159,158 +275,43 @@ const GoogleAuth = ({ type }) => {
           
           // If we're forcing selection after a logout, add stronger parameters
           if (forceSelection) {
-            // These parameters will force Google to always show the account picker:
-            // prompt=select_account - Always show account selection, even if there's only one account
-            // access_type=online - Don't request offline access (refresh tokens)
-            // include_granted_scopes=false - Don't include previously granted scopes
-            // login_hint= - Clear previous login hints
-            // force_selection=true - Our custom parameter to track this is a force selection
-            // authuser=select_account - Explicitly ask Google to show the account picker
-            // approval_prompt=force - Always prompt the user for consent, even if previously granted
             authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&force_selection=true&unique=${uniqueId}&authuser=select_account&approval_prompt=force`;
           }
           
-          // Open the Google auth popup with parameters to:
-          // - prompt=select_account: Force account selection every time
-          // - access_type=online: Prevent requesting refresh tokens that affect browser-wide auth
-          // - include_granted_scopes=false: Don't include previously granted permissions
-          // - login_hint: Clear to avoid auto-selecting previous account
-          // - gsiwebsdk: Prevent auto-login behavior
-          // - Add a unique random parameter to prevent caching
-          // - Add authuser=select_account when forcing selection after logout
           const popup = window.open(
             authUrl,
             popupName,
             `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
           );
           
-          // Check if popup was blocked
-          if (!popup) {
-            console.error('Popup blocked or could not be opened');
-            alert('Please enable popups for this website to use Google Sign In');
-            setIsLoading(false);
-            return;
-          }
-          
-          // Listen for messages from the popup
-          window.addEventListener('message', function authListener(event) {
-            // Verify origin to prevent XSS
-            const clientURL = process.env.REACT_APP_CLIENT_URL || 'http://localhost:3000';
-            const serverURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-            
-            // Accept messages from either our client or server URL
-            if (event.origin !== clientURL && event.origin !== serverURL) {
-              return;
-            }
-            
-            // Check if the message contains authentication data
-            if (event.data && event.data.token) {
-              console.log('Received auth data from popup');
-              
-              if (!authCompleted.current) {
-                // Store the token and user data to match AuthContext
-                localStorage.setItem('token', event.data.token);
-                if (event.data.user) {
-                  localStorage.setItem('user', JSON.stringify(event.data.user));
-                }
-                
-                // Mark auth as completed
-                authCompleted.current = true;
-                
-                // Clean up
-                window.removeEventListener('message', authListener);
-                clearInterval(popupCheckInterval);
-                setIsLoading(false);
-                
-                // Redirect or update UI as needed
-                window.location.reload();
-              }
-            } else if (event.data && event.data.canceled) {
-              console.log('Authentication was canceled');
-              
-              if (!authCompleted.current) {
-                // Mark auth as completed
-                authCompleted.current = true;
-                
-                // Clean up
-                window.removeEventListener('message', authListener);
-                clearInterval(popupCheckInterval);
-                setIsLoading(false);
-              }
-            }
-          });
-          
-          // Check if popup closes without sending a message (e.g., user closes the popup)
-          // We use a reference to track if auth is completed to avoid duplicate state updates
-          const authCompleted = { current: false };
-          
-          const popupCheckInterval = setInterval(() => {
-            try {
-              // We'll try to access popup properties, but this might fail due to COOP
-              // Instead of checking popup.closed directly, we'll use a more robust approach
-              if (!popup) {
-                // Popup reference is lost
-                if (!authCompleted.current) {
-                  console.log('Auth popup reference lost');
-                  clearInterval(popupCheckInterval);
-                  setIsLoading(false);
-                  authCompleted.current = true;
-                }
-              } else {
-                // Try to detect if the popup is closed without directly accessing .closed
-                try {
-                  // Try to access popup location - this will throw if popup is closed
-                  // We don't actually need to use the result, just see if it throws
-                  popup.location.href; // eslint-disable-line no-unused-expressions
-                } catch (e) {
-                  // Error when trying to access popup - likely closed
-                  if (!authCompleted.current) {
-                    console.log('Auth popup was closed without completing authentication');
-                    clearInterval(popupCheckInterval);
-                    setIsLoading(false);
-                    authCompleted.current = true;
-                  }
-                }
-              }
-            } catch (e) {
-              // Any other error, clear the interval and reset loading state
-              console.log('Error checking popup state:', e.message);
-              if (!authCompleted.current) {
-                clearInterval(popupCheckInterval);
-                setIsLoading(false);
-                authCompleted.current = true;
-              }
-            }
-          }, 1000);
-          
-          // Set a timeout to handle cases where the popup may be closed without sending a message
-          setTimeout(() => {
-            if (!authCompleted.current) {
-              console.log('Auth flow timed out after 60 seconds');
-              clearInterval(popupCheckInterval);
-              setIsLoading(false);
-              authCompleted.current = true;
-              
-              // Try to close the popup if it's still open
-              try {
-                if (popup) {
-                  popup.close();
-                }
-              } catch (e) {
-                console.error('Error closing popup after timeout:', e.message);
-              }
-            }
-          }, 60000);
+          handlePopupInteraction(popup, uniqueId, width, height, left, top);
         })
         .catch(error => {
-          console.error('Error checking Google Auth configuration:', error);
-          alert('Unable to connect to authentication server. Please try again later.');
-          setIsLoading(false);
+          console.log('Error checking Google Auth configuration, will attempt auth anyway:', error);
+          // Continue with auth attempt even if the check fails
+          
+          // Create URL with parameters - ALWAYS force account selection
+          const uniqueId = Math.random().toString(36).substring(2, 15);
+          const popupName = `GoogleAuth_${uniqueId}`;
+          
+          let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&unique=${uniqueId}`;
+          
+          if (forceSelection) {
+            authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&force_selection=true&unique=${uniqueId}&authuser=select_account&approval_prompt=force`;
+          }
+          
+          const popup = window.open(
+            authUrl,
+            popupName,
+            `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
+          );
+          
+          handlePopupInteraction(popup, uniqueId, width, height, left, top);
         });
     } catch (error) {
       console.error('Error in Google Auth flow:', error);
       setIsLoading(false);
-      alert('An error occurred during authentication. Please try again.');
+      alert('An error occurred during authentication. Please check your internet connection and try again.');
     }
   };
 
