@@ -288,12 +288,12 @@ const GoogleAuth = ({ type }) => {
             }
           }
           
-          // Create URL with parameters - ALWAYS force account selection
-          let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&unique=${uniqueId}`;
+          // Create URL with clean, standard OAuth parameters
+          let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&unique=${uniqueId}`;
           
-          // If we're forcing selection after a logout, add stronger parameters
+          // If we're forcing selection after a logout, use consent to force re-authorization
           if (forceSelection) {
-            authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&force_selection=true&unique=${uniqueId}&authuser=select_account&approval_prompt=force`;
+            authUrl = `${apiUrl}/api/auth/google?prompt=consent&unique=${uniqueId}`;
           }
           
           const popup = window.open(
@@ -308,11 +308,11 @@ const GoogleAuth = ({ type }) => {
           console.log('Error checking Google Auth configuration, will attempt auth anyway:', error);
           // Continue with auth attempt even if the check fails
           
-          // Create URL with parameters - ALWAYS force account selection
-          let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&unique=${uniqueId}`;
+          // Create URL with standard OAuth parameters only
+          let authUrl = `${apiUrl}/api/auth/google?prompt=select_account&unique=${uniqueId}`;
           
           if (forceSelection) {
-            authUrl = `${apiUrl}/api/auth/google?prompt=select_account&access_type=online&include_granted_scopes=false&login_hint=&gsiwebsdk=3&force_selection=true&unique=${uniqueId}&authuser=select_account&approval_prompt=force`;
+            authUrl = `${apiUrl}/api/auth/google?prompt=consent&unique=${uniqueId}`;
           }
           
           const popup = window.open(
